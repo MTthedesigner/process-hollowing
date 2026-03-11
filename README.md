@@ -40,6 +40,27 @@ const size_t shellcodeSize = ...;
 ``` 
 For the x86 project the array is named `rawData`/`rawDataSize`.
 
+#### Converter CLI options
+You can also run the converter non-interactively:
+
+```powershell
+shellcode-converter.exe --input C:\path\payload.exe
+```
+
+Supported options:
+- `-i, --input <path>` input binary path
+- `-o, --output <path>` output header path
+- `-s, --symbol <name>` data symbol name (default: `shellcode`)
+- `--size-symbol <name>` size symbol name (default: `shellcodeSize`)
+- `--bytes-per-line <n>` bytes per line in generated array (default: `16`)
+- `-h, --help` print help
+
+Example with custom symbol names:
+
+```powershell
+shellcode-converter.exe --input C:\payload.exe --output C:\payload_header.h --symbol rawData --size-symbol rawDataSize
+```
+
 ### 3. Prepare injector projects
 - Copy the generated header into:
   - `x64/process_hollowing/src/hdr` (for 64‑bit payloads)

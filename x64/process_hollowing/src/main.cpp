@@ -19,7 +19,7 @@ static std::string GetLastErrorString(DWORD err = GetLastError()) {
     return s;
 }
 
-// small RAII wrapper for HANDLEs
+// small raii wrapper for handles
 struct Handle {
     HANDLE h;
     explicit Handle(HANDLE h_ = nullptr) : h(h_) {}
@@ -59,7 +59,7 @@ int wmain(int /*argc*/, wchar_t* /*argv*/[]) {
         return 1;
     }
 
-    if (!CreateProcess("C:\\Windows\\System32\\svchost.exe",
+    if (!CreateProcess(L"C:\\Windows\\System32\\svchost.exe",
         NULL, NULL, NULL, FALSE,
         CREATE_SUSPENDED,
         NULL, NULL, &si, &pi)) {
