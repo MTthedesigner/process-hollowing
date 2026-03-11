@@ -1,0 +1,4 @@
+input pe validation improvements
+error handling and fail safe improvements
+crash and memory-safety handling
+static analisis for better improvement
