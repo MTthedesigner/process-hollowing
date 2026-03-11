@@ -1,15 +1,25 @@
 #include "converter.h"
 
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 
 bool ReadBinaryFile(const std::filesystem::path& inputPath, std::vector<unsigned char>& output, std::wstring& error) {
+    std::error_code fileSizeError;
+    const auto fileSize = std::filesystem::file_size(inputPath, fileSizeError);
+    if (fileSizeError) {
+        error = L"Unable to determine input file size.";
+        return false;
+    }
+
     std::ifstream file(inputPath, std::ios::binary);
     if (!file) {
         error = L"Unable to open input file.";
         return false;
     }
 
+    output.clear();
+    output.reserve(static_cast<size_t>(fileSize));
     output.assign(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
     if (!file.good() && !file.eof()) {
         error = L"Read error while loading input file.";
@@ -31,9 +41,25 @@ bool WriteShellcodeHeader(
         return false;
     }
 
-    std::ofstream outputFile(outputPath, std::ios::trunc);
+    if (outputPath.empty()) {
+        error = L"Output path must not be empty.";
+        return false;
+    }
+
+    std::error_code dirError;
+    if (!outputPath.parent_path().empty()) {
+        std::filesystem::create_directories(outputPath.parent_path(), dirError);
+        if (dirError) {
+            error = L"Failed to create output directory.";
+            return false;
+        }
+    }
+
+    const std::filesystem::path tempPath = outputPath.wstring() + L".tmp";
+
+    std::ofstream outputFile(tempPath, std::ios::trunc | std::ios::binary);
     if (!outputFile) {
-        error = L"Failed to create output file.";
+        error = L"Failed to create temporary output file.";
         return false;
     }
 
@@ -66,7 +92,30 @@ bool WriteShellcodeHeader(
     outputFile << "const size_t " << sizeSymbolName << " = " << data.size() << ";\n";
 
     if (!outputFile.good()) {
-        error = L"Failed while writing output file.";
+        error = L"Failed while writing temporary output file.";
+        outputFile.close();
+        std::error_code cleanupError;
+        std::filesystem::remove(tempPath, cleanupError);
+        return false;
+    }
+
+    outputFile.close();
+    if (!outputFile) {
+        error = L"Failed to flush temporary output file.";
+        std::error_code cleanupError;
+        std::filesystem::remove(tempPath, cleanupError);
+        return false;
+    }
+
+    std::error_code removeError;
+    std::filesystem::remove(outputPath, removeError);
+
+    std::error_code renameError;
+    std::filesystem::rename(tempPath, outputPath, renameError);
+    if (renameError) {
+        error = L"Failed to finalize output file.";
+        std::error_code cleanupError;
+        std::filesystem::remove(tempPath, cleanupError);
         return false;
     }
 

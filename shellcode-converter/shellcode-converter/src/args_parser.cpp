@@ -1,6 +1,7 @@
 #include "args_parser.h"
 
 #include <iostream>
+#include <limits>
 
 namespace {
 
@@ -18,7 +19,12 @@ bool ParsePositiveInteger(const std::wstring& text, size_t& value) {
         if (ch < L'0' || ch > L'9') {
             return false;
         }
-        parsed = parsed * 10 + static_cast<size_t>(ch - L'0');
+
+        size_t digit = static_cast<size_t>(ch - L'0');
+        if (parsed > (std::numeric_limits<size_t>::max() - digit) / 10) {
+            return false;
+        }
+        parsed = parsed * 10 + digit;
     }
 
     if (parsed == 0) {
@@ -26,6 +32,42 @@ bool ParsePositiveInteger(const std::wstring& text, size_t& value) {
     }
 
     value = parsed;
+    return true;
+}
+
+bool IsAsciiIdentifierStart(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_';
+}
+
+bool IsAsciiIdentifierContinue(char ch) {
+    return IsAsciiIdentifierStart(ch) || (ch >= '0' && ch <= '9');
+}
+
+bool ConvertAndValidateIdentifier(const std::wstring& input, std::string& output) {
+    if (input.empty()) {
+        return false;
+    }
+
+    output.clear();
+    output.reserve(input.size());
+
+    for (wchar_t ch : input) {
+        if (ch > 0x7F) {
+            return false;
+        }
+        output.push_back(static_cast<char>(ch));
+    }
+
+    if (!IsAsciiIdentifierStart(output[0])) {
+        return false;
+    }
+
+    for (size_t i = 1; i < output.size(); ++i) {
+        if (!IsAsciiIdentifierContinue(output[i])) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -64,7 +106,10 @@ bool ParseArguments(int argc, wchar_t* argv[], ConverterOptions& options, std::w
                 return false;
             }
             std::wstring value = argv[++i];
-            options.symbolName.assign(value.begin(), value.end());
+            if (!ConvertAndValidateIdentifier(value, options.symbolName)) {
+                error = L"--symbol must be a valid ASCII C identifier.";
+                return false;
+            }
             continue;
         }
 
@@ -74,7 +119,10 @@ bool ParseArguments(int argc, wchar_t* argv[], ConverterOptions& options, std::w
                 return false;
             }
             std::wstring value = argv[++i];
-            options.sizeSymbolName.assign(value.begin(), value.end());
+            if (!ConvertAndValidateIdentifier(value, options.sizeSymbolName)) {
+                error = L"--size-symbol must be a valid ASCII C identifier.";
+                return false;
+            }
             continue;
         }
 
@@ -88,6 +136,12 @@ bool ParseArguments(int argc, wchar_t* argv[], ConverterOptions& options, std::w
                 error = L"--bytes-per-line must be a positive integer.";
                 return false;
             }
+
+            if (parsed > 256) {
+                error = L"--bytes-per-line must be <= 256.";
+                return false;
+            }
+
             options.bytesPerLine = parsed;
             continue;
         }

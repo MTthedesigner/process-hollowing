@@ -43,6 +43,12 @@ int wmain(int argc, wchar_t* argv[]) {
         options.outputPath = options.inputPath.parent_path() / L"shellcode.h";
     }
 
+    std::error_code compareError;
+    if (std::filesystem::equivalent(options.inputPath, options.outputPath, compareError)) {
+        std::wcerr << L"Output path must be different from input path.\n";
+        return 1;
+    }
+
     if (!WriteShellcodeHeader(
             options.outputPath,
             bytes,
@@ -55,6 +61,7 @@ int wmain(int argc, wchar_t* argv[]) {
     }
 
     std::wcout << L"Header written to " << options.outputPath.wstring() << L"\n";
+    std::wcout << L"Byte count: " << bytes.size() << L"\n";
     std::wcout << L"Symbols: "
                << std::wstring(options.symbolName.begin(), options.symbolName.end())
                << L", "
